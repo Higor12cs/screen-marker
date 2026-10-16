@@ -57,7 +57,7 @@ Write-Host ''
 Write-Host "Build pronto: $output ($size MB)" -ForegroundColor Green
 
 if ($Zip -and -not $OneFile) {
-    $zipPath = Join-Path $root 'dist\ScreenMarker-portable.zip'
+    $zipPath = Join-Path $root 'dist\ScreenMarkerPortable.zip'
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
     Compress-Archive -Path (Join-Path $root 'dist\ScreenMarker\*') -DestinationPath $zipPath
     Write-Host "Pacote portatil: $zipPath" -ForegroundColor Green
