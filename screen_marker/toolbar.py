@@ -63,6 +63,7 @@ OUTPUT_BUTTONS = (
 )
 
 COMPACT_TOOLS = ("pen", "highlighter", "arrow", "rectangle", "text", "eraser")
+COMPACT_TOGGLES = ("toggle_freeze", "toggle_clickthrough")
 COMPACT_ACTIONS = ("undo", "clear")
 
 COLOR_NAMES = {
@@ -176,6 +177,12 @@ class Toolbar(QWidget):
         self._close_button = self._button("close", "Sair da marcação", "exit_overlay")
         self._close_button.clicked.connect(lambda: self.action_triggered.emit("exit_overlay"))
 
+        self._grip = QLabel(self)
+        self._grip.setFixedSize(28, 28)
+        self._grip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._grip.setCursor(Qt.CursorShape.SizeAllCursor)
+        self._grip.setToolTip("Arraste para mover a barra")
+
         self.orientation = "vertical" if config.get("toolbar_orientation") == "vertical" else "horizontal"
         self.compact = bool(config.get("toolbar_compact", True))
         self._relayout()
@@ -229,7 +236,8 @@ class Toolbar(QWidget):
 
     def _all_widgets(self) -> list[QWidget]:
         return (
-            list(self.tool_buttons.values())
+            [self._grip]
+            + list(self.tool_buttons.values())
             + self.color_buttons
             + [self.current_color, self._minus, self.width_label, self._plus]
             + list(self.toggle_buttons.values())
@@ -243,7 +251,8 @@ class Toolbar(QWidget):
             return [
                 [self.tool_buttons[tool] for tool in COMPACT_TOOLS],
                 colors,
-                [self.action_buttons[action] for action in COMPACT_ACTIONS],
+                [self.toggle_buttons[action] for action in COMPACT_TOGGLES]
+                + [self.action_buttons[action] for action in COMPACT_ACTIONS],
                 [self._more_button, self._close_button],
             ]
         return [
@@ -298,16 +307,23 @@ class Toolbar(QWidget):
         for widget in self._all_widgets():
             widget.hide()
 
-        groups = self._groups()
         center = Qt.AlignmentFlag.AlignCenter
         vertical = columns > 0
+        glyph = "grip_horizontal" if vertical else "grip_vertical"
+        self._grip.setPixmap(icons.render(glyph, "#9aa0ab", 20))
+        if vertical:
+            grid.addWidget(self._grip, 0, 0, 1, columns, center)
+        else:
+            grid.addWidget(self._grip, 0, 0)
+        self._grip.show()
+        groups = self._groups()
         if vertical:
             grid.setContentsMargins(6, 8, 6, 8)
         else:
             grid.setContentsMargins(8, 6, 8, 6)
 
-        row = 0
-        column = 0
+        row = 1 if vertical else 0
+        column = 0 if vertical else 1
         for index, group in enumerate(groups):
             if index:
                 if vertical:
