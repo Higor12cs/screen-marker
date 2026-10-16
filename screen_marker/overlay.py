@@ -465,11 +465,19 @@ class OverlayWindow(QWidget):
         self.state_changed.emit()
 
     def keyPressEvent(self, event) -> None:
+        if self._editor is not None and event.key() == Qt.Key.Key_Escape:
+            self.cancel_editor()
+            event.accept()
+            return
         for action, sequence in self.config["local_hotkeys"].items():
             if matches(event, sequence):
                 self.run_action(action)
                 event.accept()
                 return
+        if event.key() == Qt.Key.Key_Escape:
+            self.stop()
+            event.accept()
+            return
         super().keyPressEvent(event)
 
     def run_action(self, action: str) -> None:

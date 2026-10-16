@@ -179,7 +179,20 @@ class ScreenMarker(QObject):
         self.show_toolbar()
         self.overlay.refocus()
 
+    def raise_modal(self) -> bool:
+        modal = QApplication.activeModalWidget()
+        if modal is None:
+            return False
+        if self.overlay.isVisible():
+            self.overlay.stop()
+        modal.raise_()
+        modal.activateWindow()
+        winutil.force_foreground(int(modal.winId()))
+        return True
+
     def handle_global(self, action: str) -> None:
+        if action != "quit_app" and self.raise_modal():
+            return
         if action == "toggle_overlay":
             if not self.overlay.isVisible():
                 self.start_overlay(bool(self.config["start_frozen"]))
@@ -252,11 +265,14 @@ class ScreenMarker(QObject):
             return
         dialog = SettingsDialog(self.config)
         self.settings_dialog = dialog
-        if dialog.exec():
-            self.register_hotkeys()
+        self.hotkeys.unregister_all()
+        accepted = dialog.exec()
+        self.register_hotkeys()
+        if accepted:
             self.build_tray_menu()
             self.toolbar.refresh_tooltips()
             self.toolbar.set_orientation(self.config["toolbar_orientation"])
+            self.toolbar.set_compact(bool(self.config["toolbar_compact"]))
             self.overlay.tool = self.config["default_tool"]
             self.overlay.font_size = int(self.config["font_size"])
             self.overlay.set_pen_width(float(self.config["pen_width"]))
@@ -271,6 +287,10 @@ class ScreenMarker(QObject):
         self.settings_dialog = None
 
     def show_shortcuts(self) -> None:
+        if self.raise_modal():
+            return
+        if self.overlay.isVisible():
+            self.overlay.stop()
         lines = ["<b>Atalhos globais</b><table>"]
         for action, label in GLOBAL_ACTIONS.items():
             sequence = self.config["global_hotkeys"].get(action, "") or "—"

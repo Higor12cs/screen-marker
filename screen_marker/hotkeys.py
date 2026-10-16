@@ -135,6 +135,9 @@ class GlobalHotkeyManager(QObject, QAbstractNativeEventFilter):
             if parsed is None:
                 continue
             modifiers, vk = parsed
+            if not modifiers & (MOD_CONTROL | MOD_ALT | MOD_WIN) and not 0x70 <= vk <= 0x87:
+                self.failures.append(sequence)
+                continue
             hotkey_id = self._next_id
             self._next_id += 1
             if user32.RegisterHotKey(None, hotkey_id, modifiers, vk):

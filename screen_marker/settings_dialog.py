@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from . import icons
 from .config import GLOBAL_ACTIONS, LOCAL_ACTIONS, Config
+from .hotkeys import MOD_ALT, MOD_CONTROL, MOD_WIN, parse_sequence
 from .shapes import TOOL_LABELS, TOOLS
 
 
@@ -193,6 +194,10 @@ class SettingsDialog(QDialog):
         self.orientation_combo.setCurrentIndex(max(0, index))
         general_form.addRow("Orientação da barra", self.orientation_combo)
 
+        self.compact_check = QCheckBox("Barra resumida (só as ferramentas principais)", general_box)
+        self.compact_check.setChecked(bool(self.config.get("toolbar_compact", True)))
+        general_form.addRow(self.compact_check)
+
         self.autostart_check = QCheckBox("Iniciar junto com o Windows", general_box)
         self.autostart_check.setChecked(bool(self.config["autostart"]))
         general_form.addRow(self.autostart_check)
@@ -259,6 +264,7 @@ class SettingsDialog(QDialog):
         self.orientation_combo.setCurrentIndex(
             max(0, self.orientation_combo.findData(DEFAULTS["toolbar_orientation"]))
         )
+        self.compact_check.setChecked(DEFAULTS["toolbar_compact"])
         self.tool_combo.setCurrentIndex(max(0, self.tool_combo.findData(DEFAULTS["default_tool"])))
 
     def _duplicates(self, rows: dict[str, HotkeyRow], labels: dict[str, str]) -> str | None:
@@ -273,12 +279,43 @@ class SettingsDialog(QDialog):
             seen[key] = labels[action]
         return None
 
+    def _unsafe_global(self) -> str | None:
+        for action, row in self.global_rows.items():
+            value = row.value()
+            if not value:
+                continue
+            parsed = parse_sequence(value)
+            if parsed is None:
+                return "%s não pode ser usado como atalho global (%s)." % (value, GLOBAL_ACTIONS[action])
+            modifiers, vk = parsed
+            if not modifiers & (MOD_CONTROL | MOD_ALT | MOD_WIN) and not 0x70 <= vk <= 0x87:
+                return (
+                    "%s sozinho bloquearia essa tecla em todo o Windows (%s). "
+                    "Use Ctrl, Alt ou Win junto." % (value, GLOBAL_ACTIONS[action])
+                )
+        return None
+
+    def _shadowed_local(self) -> str | None:
+        globals_in_use = {row.value().lower(): action for action, row in self.global_rows.items() if row.value()}
+        for action, row in self.local_rows.items():
+            value = row.value()
+            if value and value.lower() in globals_in_use:
+                return "%s já é atalho global (%s) e nunca chegaria em %s." % (
+                    value,
+                    GLOBAL_ACTIONS[globals_in_use[value.lower()]],
+                    LOCAL_ACTIONS[action],
+                )
+        return None
+
     def accept(self) -> None:
-        conflict = self._duplicates(self.global_rows, GLOBAL_ACTIONS) or self._duplicates(
-            self.local_rows, LOCAL_ACTIONS
+        conflict = (
+            self._duplicates(self.global_rows, GLOBAL_ACTIONS)
+            or self._duplicates(self.local_rows, LOCAL_ACTIONS)
+            or self._unsafe_global()
+            or self._shadowed_local()
         )
         if conflict:
-            QMessageBox.warning(self, "Atalho repetido", conflict)
+            QMessageBox.warning(self, "Atalho inválido", conflict)
             return
         for action, row in self.global_rows.items():
             self.config["global_hotkeys"][action] = row.value()
@@ -296,6 +333,7 @@ class SettingsDialog(QDialog):
         self.config["start_frozen"] = self.frozen_check.isChecked()
         self.config["toolbar_visible"] = self.toolbar_check.isChecked()
         self.config["toolbar_orientation"] = self.orientation_combo.currentData()
+        self.config["toolbar_compact"] = self.compact_check.isChecked()
         self.config["autostart"] = self.autostart_check.isChecked()
         self.config["save_directory"] = self.directory_edit.text().strip()
         self.config.save()

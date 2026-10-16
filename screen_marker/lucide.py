@@ -26,4 +26,5 @@ GLYPHS = {
     "close": '<path d="M18 6 6 18" /> <path d="m6 6 12 12" />',
     "plus": '<path d="M5 12h14" /> <path d="M12 5v14" />',
     "minus": '<path d="M5 12h14" />',
+    "more": '<circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" />',
 }

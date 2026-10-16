@@ -121,6 +121,7 @@ DEFAULTS = {
     "toolbar_visible": True,
     "toolbar_position": None,
     "toolbar_orientation": "horizontal",
+    "toolbar_compact": True,
     "toolbar_scale": 1.0,
     "autostart": False,
     "save_directory": "",
